@@ -1,0 +1,198 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const app = express();
+const cors = require('cors');
+const ticketSchema = require('../models/tickets');
+const mongoose = require('mongoose');
+const {checkRole} = require('../auth/auth');
+app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+
+const conn = mongoose.createConnection('mongodb://127.0.0.1:27017/ProjectDB');
+conn.on('connected', () => {
+  console.log('MongoDB connection established');
+});
+conn.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+API_URL = "http://localhost:4002"
+port = 4001
+const Ticket = conn.model('Ticket', ticketSchema);
+
+
+async function log_activity({ ticket, user, user_email, event, details }) {
+  const response = await fetch(`${API_URL}/logs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticket, user, user_email, event, details }),
+
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Logging failed.");
+
+  }
+  return data;
+
+}
+
+app.post("/tickets", async (req, res) => { // Create a new ticket
+  try {
+    const userId = req.headers['x-user-id'];
+    const userEmail = req.headers['x-user-email'];
+
+    const ticket = new Ticket(
+      {
+        title : req.body.title,
+        email : userEmail,
+        motive : req.body.motive,
+        description : req.body.description
+      });
+
+    await ticket.save();
+
+    const new_log = await log_activity({
+    ticket: ticket._id,
+    user: userId,
+    user_email: userEmail,
+    event : 'Creating a new ticket',
+    details : {
+      title : req.body.title,
+    }
+    });
+
+    res.json({ticket, "log": new_log});
+
+  } catch (err) {
+    res.status(500).json({ err: "Ticket could not be registered." });
+
+  }
+});
+
+app.get("/tickets/active", async (req, res) => { // Get all active tickets
+  try {
+    const userId = req.headers['x-user-id'];
+    const tickets = await Ticket.find({ status: { $in: ["open", "pending"] } });
+    const userEmail = req.headers['x-user-email'];
+
+    if (tickets.length > 0){
+      res.json(tickets);
+
+    } else if (tickets.length === 0) {
+    res.status(404).json({message : "There is currently no active ticket."})
+    }
+  } catch (err) {
+    res.status(500).json({ err: "Error during ticket research." });
+
+  }
+});
+
+app.get("/tickets/:motive", async (req, res) => { // Get all tickets for a specific motive
+  try {
+    const userId = req.headers['x-user-id'];
+    const tickets = await Ticket.findMany({motive : req.params.motive});
+
+    if (tickets.length > 0){
+      res.json(tickets);
+
+    } else if (tickets.length === 0){
+      res.status(404).json({ message : "There is currently no ticket in this category."});
+
+    }
+  } catch (err) {
+    res.status(500).json({ err: "Error during the fetching of the tickets." });
+
+  }
+});
+
+app.get("/tickets/:status", async (req, res) => { // Get all tickets by status
+  try {
+    const userId = req.headers['x-user-id'];
+    const tickets = await Ticket.findMany({status : req.params.status});
+
+    if (tickets.length > 0){
+      res.json({tickets});
+
+    } else if (tickets.length === 0){
+      res.status(404).json({ message : "There is currently no ticket with this status."});
+
+    }
+  } catch (err) {
+    res.status(500).json({ err: "Error during the fetching of the tickets." });
+
+  }
+});
+
+app.delete("/tickets/:id", checkRole("admin"), async (req, res) => { // Delete a specific ticket
+try{
+  const userId = req.headers['x-user-id'];
+  const userEmail = req.headers['x-user-email'];
+
+  const ticketId = req.params.id
+  const ticket = await Ticket.findByIdAndDelete(ticketId)
+
+  if (ticket) {
+    const new_log = await log_activity({
+    ticket: ticket._id,
+    user: userId,
+    user_email: userEmail,
+    event : 'Deleting a ticket',
+    details : {
+      title : ticket.title,
+    }
+    });
+
+    res.json({"Ticket successfully deleted" : ticket, "log": new_log});
+
+  } else if (!ticket){
+    res.status(404).json({message : "Could not find the ticket to delete."})
+
+  }
+} catch (err){
+  res.status(500).json({err : "Error while deleting the ticket."})
+
+}
+});
+
+app.put("/tickets/:id", checkRole("admin"), async (req, res) => { // Modify a specific ticket
+  try{
+    const ticketId = req.params.id;
+
+    const userId = req.headers['x-user-id'];
+    const userEmail = req.headers['x-user-email'];
+
+    const updatedData = req.body;
+    const ticket = await Ticket.findByIdAndUpdate(ticketId, updatedData, {new: true});
+
+    if (ticket){
+      const new_log = await log_activity({
+      ticket: ticket._id,
+      user: userId,
+      user_email: userEmail,
+      event : 'Updating a ticket',
+      details : {
+        title : ticket.title,
+        updated_data : updatedData
+      }
+      });
+
+      res.json({"Ticket successfully updated" : ticket, "log": new_log});
+
+    } else if (!ticket){
+      res.status(404).json({message : "Could not find the ticket to update."});
+
+    }
+} catch (err){
+  res.status(500).json({error : "Error while updating the ticket."})
+
+}
+});
+
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Ticket microservice listening on http://localhost:${port}`);
+  });
+}
