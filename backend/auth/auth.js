@@ -1,11 +1,15 @@
 const express = require("express");
+require('dotenv').config();
 const jwt = require("jsonwebtoken");
 const bodyParser = require("body-parser");
-const app = express();
-const secretKey = "your-very-secure-secret";
 const cors = require('cors');
 const userSchema = require('../models/users');
 const mongoose = require('mongoose');
+
+const secretApiKey = process.env.API_KEY;
+const secretKey = process.env.SECRET_KEY;
+
+const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -46,7 +50,6 @@ app.post("/login", async (req, res) => { // Authentification (log-in) route
 app.post("/register", async (req, res) => { // Register/sign-in route
 
   try {
-
     const user = new User({name : req.body.name, email : req.body.email, role : req.body.role, password_hash : req.body.password_hash})
     await user.save();
 
@@ -82,7 +85,16 @@ function checkRole(role) { // Middleware function to check the user's role
     };
 }
 
-module.exports = {verifyToken, checkRole};
+function checkAccess() {
+    return (req, res, next) => {
+        if (req.headers['x-secret-apikey'] !== secretApiKey){
+            return res.status(403).json({message : "Access forbidden. Access this endpoint using a valid URL."})
+            }
+        next();
+    };
+}
+
+module.exports = {verifyToken, checkRole, checkAccess};
 
 if (require.main === module) {
   app.listen(port, () => {

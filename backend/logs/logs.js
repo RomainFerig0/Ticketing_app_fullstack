@@ -23,7 +23,6 @@ port = 4002
 const Log = conn.model('Log', logSchema);
 
 app.post("/logs", async (req, res) => { // Log an activity
-
   try{
     const log = new Log(
       {
@@ -32,11 +31,14 @@ app.post("/logs", async (req, res) => { // Log an activity
         user_email : req.body.user_email,
         event : req.body.event,
         details : req.body.details
+        
       })
     await log.save();
     res.json(log)
+
   }catch(err){
     res.status(500).json({err : "Error during log registration."})
+
   }
 });
 

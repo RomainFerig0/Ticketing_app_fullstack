@@ -1,7 +1,11 @@
 const express = require('express');
+require('dotenv').config();
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
+
 const app = express();
+const secretApiKey = process.env.API_KEY;
+
 app.use(cors());
 const {verifyToken} = require('../auth/auth');
 
@@ -11,6 +15,7 @@ function forwardCredentials(req, res, next) {
     req.headers['x-user-id'] = req.user.id;
     req.headers['x-user-email'] = req.user.email;
     req.headers['x-user-role'] = req.user.role;
+    req.headers['x-secret-apikey'] = secretApiKey;
     next();
 }
 

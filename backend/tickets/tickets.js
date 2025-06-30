@@ -4,7 +4,7 @@ const app = express();
 const cors = require('cors');
 const ticketSchema = require('../models/tickets');
 const mongoose = require('mongoose');
-const {checkRole} = require('../auth/auth');
+const {checkRole, checkAccess} = require('../auth/auth');
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
@@ -20,7 +20,6 @@ conn.on('error', (err) => {
 API_URL = "http://localhost:4002"
 port = 4001
 const Ticket = conn.model('Ticket', ticketSchema);
-
 
 async function log_activity({ ticket, user, user_email, event, details }) {
   const response = await fetch(`${API_URL}/logs`, {
@@ -39,7 +38,7 @@ async function log_activity({ ticket, user, user_email, event, details }) {
 
 }
 
-app.post("/tickets", async (req, res) => { // Create a new ticket
+app.post("/tickets", checkAccess(), async (req, res) => { // Create a new ticket
   try {
     const userId = req.headers['x-user-id'];
     const userEmail = req.headers['x-user-email'];
@@ -72,7 +71,25 @@ app.post("/tickets", async (req, res) => { // Create a new ticket
   }
 });
 
-app.get("/tickets/active", async (req, res) => { // Get all active tickets
+app.get("/tickets/user", checkAccess(), checkRole("user"), async (req, res) => { // Get all tickets for the user currently logged in
+  try {
+    const userEmail = req.headers['x-user-email'];
+    const tickets = await Ticket.find({email : userEmail});
+
+    if (tickets.length > 0){
+      res.json(tickets);
+
+    } else if (tickets.length === 0){
+      res.status(404).json({ message : "There is currently no ticket in this category."});
+
+    }
+  } catch (err) {
+    res.status(500).json({ err: "Error during the fetching of the tickets." });
+
+  }
+});
+
+app.get("/tickets/active", checkAccess(), checkRole("admin"), async (req, res) => { // Get all active tickets
   try {
     const userId = req.headers['x-user-id'];
     const tickets = await Ticket.find({ status: { $in: ["open", "pending"] } });
@@ -90,10 +107,10 @@ app.get("/tickets/active", async (req, res) => { // Get all active tickets
   }
 });
 
-app.get("/tickets/:motive", async (req, res) => { // Get all tickets for a specific motive
+app.get("/tickets/:motive", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets for a specific motive
   try {
     const userId = req.headers['x-user-id'];
-    const tickets = await Ticket.findMany({motive : req.params.motive});
+    const tickets = await Ticket.find({motive : req.params.motive});
 
     if (tickets.length > 0){
       res.json(tickets);
@@ -108,10 +125,10 @@ app.get("/tickets/:motive", async (req, res) => { // Get all tickets for a speci
   }
 });
 
-app.get("/tickets/:status", async (req, res) => { // Get all tickets by status
+app.get("/tickets/:status", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets by status
   try {
     const userId = req.headers['x-user-id'];
-    const tickets = await Ticket.findMany({status : req.params.status});
+    const tickets = await Ticket.find({status : req.params.status});
 
     if (tickets.length > 0){
       res.json({tickets});
@@ -126,7 +143,7 @@ app.get("/tickets/:status", async (req, res) => { // Get all tickets by status
   }
 });
 
-app.delete("/tickets/:id", checkRole("admin"), async (req, res) => { // Delete a specific ticket
+app.delete("/tickets/:id", checkAccess(), checkRole("admin"), async (req, res) => { // Delete a specific ticket
 try{
   const userId = req.headers['x-user-id'];
   const userEmail = req.headers['x-user-email'];
@@ -157,7 +174,7 @@ try{
 }
 });
 
-app.put("/tickets/:id", checkRole("admin"), async (req, res) => { // Modify a specific ticket
+app.patch("/tickets/:id", checkAccess(), checkRole("admin"), async (req, res) => { // Modify a specific ticket
   try{
     const ticketId = req.params.id;
 
