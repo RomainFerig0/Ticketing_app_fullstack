@@ -4,6 +4,7 @@ frontend/node_modules
 frontend/.next
 
 backend/messages
-backend/models/messages.js
+backend/models/logs.js
+backend/logs/logsold.js
 
 credentials.json
