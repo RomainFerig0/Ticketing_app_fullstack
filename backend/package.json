@@ -18,7 +18,9 @@
     "http-simple-proxy": "^1.0.5",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.17.0",
-    "mongoose": "^8.16.0"
+    "mongoose": "^8.16.0",
+    "mysql2": "^3.14.1",
+    "nodemailer": "^7.0.4"
   },
   "devDependencies": {
     "concurrently": "^9.2.0"

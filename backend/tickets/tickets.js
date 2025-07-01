@@ -5,6 +5,17 @@ const cors = require('cors');
 const ticketSchema = require('../models/tickets');
 const mongoose = require('mongoose');
 const {checkRole, checkAccess} = require('../auth/auth');
+const nodemailer = require("nodemailer");
+
+/*
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL,
+    pass: process.env.PASSWORD,
+  },
+});*/
+
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
@@ -60,6 +71,7 @@ app.post("/tickets", checkAccess(), async (req, res) => { // Create a new ticket
     event : 'Creating a new ticket',
     details : {
       title : req.body.title,
+      date : Date.now()
     }
     });
 
@@ -71,10 +83,10 @@ app.post("/tickets", checkAccess(), async (req, res) => { // Create a new ticket
   }
 });
 
-app.get("/tickets/user", checkAccess(), checkRole("user"), async (req, res) => { // Get all tickets for the user currently logged in
+app.get("/tickets/user", checkAccess(), checkRole("user"), async (req, res) => { // Get all active tickets for the user currently logged in
   try {
     const userEmail = req.headers['x-user-email'];
-    const tickets = await Ticket.find({email : userEmail});
+    const tickets = await Ticket.find({email : userEmail, status: { $in: ["open", "pending"] }});
 
     if (tickets.length > 0){
       res.json(tickets);
@@ -91,9 +103,7 @@ app.get("/tickets/user", checkAccess(), checkRole("user"), async (req, res) => {
 
 app.get("/tickets/active", checkAccess(), checkRole("admin"), async (req, res) => { // Get all active tickets
   try {
-    const userId = req.headers['x-user-id'];
     const tickets = await Ticket.find({ status: { $in: ["open", "pending"] } });
-    const userEmail = req.headers['x-user-email'];
 
     if (tickets.length > 0){
       res.json(tickets);
@@ -109,7 +119,6 @@ app.get("/tickets/active", checkAccess(), checkRole("admin"), async (req, res) =
 
 app.get("/tickets/:motive", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets for a specific motive
   try {
-    const userId = req.headers['x-user-id'];
     const tickets = await Ticket.find({motive : req.params.motive});
 
     if (tickets.length > 0){
@@ -127,7 +136,6 @@ app.get("/tickets/:motive", checkAccess(), checkRole("admin"), async (req, res) 
 
 app.get("/tickets/:status", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets by status
   try {
-    const userId = req.headers['x-user-id'];
     const tickets = await Ticket.find({status : req.params.status});
 
     if (tickets.length > 0){
@@ -159,8 +167,17 @@ try{
     event : 'Deleting a ticket',
     details : {
       title : ticket.title,
+      date : Date.now()
     }
     });
+
+    /*
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: userEmail,
+      subject: `${ticket.email} : Ticket Deleted`,
+      text: req.body.description,
+    });*/
 
     res.json({"Ticket successfully deleted" : ticket, "log": new_log});
 
@@ -192,7 +209,8 @@ app.patch("/tickets/:id", checkAccess(), checkRole("admin"), async (req, res) =>
       event : 'Updating a ticket',
       details : {
         title : ticket.title,
-        updated_data : updatedData
+        updated_data : updatedData,
+        date : Date.now()
       }
       });
 
