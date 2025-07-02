@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const app = express();
@@ -7,6 +7,8 @@ const ticketSchema = require('../models/tickets');
 const mongoose = require('mongoose');
 const {checkRole, checkAccess} = require('../auth/auth');
 const nodemailer = require("nodemailer");
+const secretEmail = process.env.EMAIL;
+const secretPassword = process.env.PASSWORD;
 
 /*
 const transporter = nodemailer.createTransport({

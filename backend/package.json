@@ -14,6 +14,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.0.0",
     "express": "^5.1.0",
+    "find-config": "^1.0.0",
     "google-auth-library": "^10.1.0",
     "http-proxy-middleware": "^3.0.5",
     "http-simple-proxy": "^1.0.5",
