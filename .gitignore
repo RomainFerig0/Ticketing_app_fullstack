@@ -1,13 +1,16 @@
-# Ignore the dependencies
-backend/node_modules
-frontend/node_modules
+# Node modules
+**/node_modules
+
+# Next.js build
 frontend/.next
 
-backend/messages
+# Logs and messages
+backend/messages/
 backend/models/logs.js
 backend/logs/logsold.js
 
-backend/auth/.env
-backend/.env
+# Environment files
+**/.env
 
+# Credentials
 credentials.json
