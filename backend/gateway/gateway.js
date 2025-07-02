@@ -19,7 +19,6 @@ function forwardCredentials(req, res, next) {
     next();
 }
 
-// Proxy each service
 app.use('/api/auth', 
     createProxyMiddleware(
         { 

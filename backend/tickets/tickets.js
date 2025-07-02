@@ -61,7 +61,6 @@ app.post("/tickets", checkAccess(), async (req, res) => { // Create a new ticket
         motive : req.body.motive,
         description : req.body.description
       });
-
     await ticket.save();
 
     const new_log = await log_activity({
@@ -78,8 +77,8 @@ app.post("/tickets", checkAccess(), async (req, res) => { // Create a new ticket
     res.json({ticket, "log": new_log});
 
   } catch (err) {
+    console.error("Error creating ticket:", err);
     res.status(500).json({ err: "Ticket could not be registered." });
-
   }
 });
 
@@ -96,6 +95,7 @@ app.get("/tickets/user", checkAccess(), checkRole("user"), async (req, res) => {
 
     }
   } catch (err) {
+    console.error("Error fetching tickets:", err);
     res.status(500).json({ err: "Error during the fetching of the tickets." });
 
   }
@@ -112,6 +112,7 @@ app.get("/tickets/active", checkAccess(), checkRole("admin"), async (req, res) =
     res.status(404).json({message : "There is currently no active ticket."})
     }
   } catch (err) {
+    console.error("Error researching tickets:", err);
     res.status(500).json({ err: "Error during ticket research." });
 
   }
@@ -129,6 +130,7 @@ app.get("/tickets/:motive", checkAccess(), checkRole("admin"), async (req, res) 
 
     }
   } catch (err) {
+    console.error("Error fetching tickets:", err);
     res.status(500).json({ err: "Error during the fetching of the tickets." });
 
   }
@@ -146,6 +148,7 @@ app.get("/tickets/:status", checkAccess(), checkRole("admin"), async (req, res) 
 
     }
   } catch (err) {
+    console.error("Error fetching tickets:", err);
     res.status(500).json({ err: "Error during the fetching of the tickets." });
 
   }
@@ -186,6 +189,7 @@ try{
 
   }
 } catch (err){
+  console.error("Error deleting ticket:", err);
   res.status(500).json({err : "Error while deleting the ticket."})
 
 }
@@ -221,6 +225,7 @@ app.patch("/tickets/:id", checkAccess(), checkRole("admin"), async (req, res) =>
 
     }
 } catch (err){
+  console.error("Error updating ticket:", err);
   res.status(500).json({error : "Error while updating the ticket."})
 
 }

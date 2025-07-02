@@ -69,6 +69,7 @@ app.post("/logs", async (req, res) => { // Log an activity
 
     res.json({log});
   }catch(err){
+    console.error("Error creating log:", err);
     res.status(500).json({err : "Error during log registration."})
 
   }

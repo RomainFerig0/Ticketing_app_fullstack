@@ -1,15 +1,12 @@
 const express = require("express");
-require('dotenv').config();
 const jwt = require("jsonwebtoken");
 const bodyParser = require("body-parser");
+const app = express();
+const secretKey = process.env.SECRET_KEY;
+const secretApiKey = process.env.API_KEY
 const cors = require('cors');
 const userSchema = require('../models/users');
 const mongoose = require('mongoose');
-
-const secretApiKey = process.env.API_KEY;
-const secretKey = process.env.SECRET_KEY;
-
-const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -42,6 +39,7 @@ app.post("/login", async (req, res) => { // Authentification (log-in) route
 
     }
   }catch(err){
+    console.error("Error during login :", err);
     res.status(500).json({err : "Error during login. Please try again."})
 
   }
@@ -50,6 +48,7 @@ app.post("/login", async (req, res) => { // Authentification (log-in) route
 app.post("/register", async (req, res) => { // Register/sign-in route
 
   try {
+
     const user = new User({name : req.body.name, email : req.body.email, role : req.body.role, password_hash : req.body.password_hash})
     await user.save();
 
@@ -57,10 +56,28 @@ app.post("/register", async (req, res) => { // Register/sign-in route
     res.json({ token });
 
   } catch (err) {
+    console.error("Error during registration :", err);
     res.status(500).json({ err: "Error during registration. Please try again." });
 
   }
 });
+
+function checkAccess() {
+    return (req, res, next) => {
+        if (req.headers['x-secret-apikey'] !== secretApiKey){
+            return res.status(403).json({message : "Access forbidden. Access this endpoint using a valid URL."})
+            }
+        next();
+    };
+}
+function checkRole(role) { // Middleware function to check the user's role
+    return (req, res, next) => {
+        if (req.headers['x-user-role'] !== role) {
+            return res.status(403).json({ message: "Access forbidden: you do not have the required authorization(s)." });
+            }
+        next();
+    };
+}
 
 function verifyToken(req, res, next) { // Middleware function to check the JWT
     const token = req.headers["authorization"]?.split(" ")[1];
@@ -76,25 +93,49 @@ function verifyToken(req, res, next) { // Middleware function to check the JWT
     });
 }
 
-function checkRole(role) { // Middleware function to check the user's role
-    return (req, res, next) => {
-        if (req.headers['x-user-role'] !== role) {
-            return res.status(403).json({ message: "Access forbidden: you do not have the required authorization(s)." });
-            }
-        next();
-    };
-}
 
-function checkAccess() {
-    return (req, res, next) => {
-        if (req.headers['x-secret-apikey'] !== secretApiKey){
-            return res.status(403).json({message : "Access forbidden. Access this endpoint using a valid URL."})
-            }
-        next();
-    };
-}
+const { OAuth2Client } = require("google-auth-library");
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-module.exports = {verifyToken, checkRole, checkAccess};
+app.post("/google-login", async (req, res) => {
+  const { token, admin_secret } = req.body;
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub, email, name } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const role = admin_secret === process.env.ADMIN_SECRET ? "admin" : "user";
+      user = new User({
+        name,
+        email,
+        password: sub,
+        role
+      });
+      await user.save();
+    }
+
+    const jwtToken = jwt.sign(
+      { id: user._id, role: user.role, email: user.email },
+      secretKey,
+      { expiresIn: "1h" }
+    );
+
+    res.json({ token: jwtToken });
+  } catch (err) {
+    console.error("Google login failed", err);
+    res.status(401).json({ message: "Invalid Google token" });
+  }
+});
+
+module.exports = {checkAccess, checkRole, verifyToken};
 
 if (require.main === module) {
   app.listen(port, () => {
