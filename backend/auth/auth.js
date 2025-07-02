@@ -59,6 +59,23 @@ app.post("/register", async (req, res) => { // Register/sign-in route
   }
 });
 
+function checkAccess() {
+    return (req, res, next) => {
+        if (req.headers['x-secret-apikey'] !== secretApiKey){
+            return res.status(403).json({message : "Access forbidden. Access this endpoint using a valid URL."})
+            }
+        next();
+    };
+}
+function checkRole(role) { // Middleware function to check the user's role
+    return (req, res, next) => {
+        if (req.headers['x-user-role'] !== role) {
+            return res.status(403).json({ message: "Access forbidden: you do not have the required authorization(s)." });
+            }
+        next();
+    };
+}
+
 function verifyToken(req, res, next) { // Middleware function to check the JWT
     const token = req.headers["authorization"]?.split(" ")[1];
     if (!token) {
@@ -73,16 +90,49 @@ function verifyToken(req, res, next) { // Middleware function to check the JWT
     });
 }
 
-function checkRole(role) { // Middleware function to check the user's role
-    return (req, res, next) => {
-        if (req.headers['x-user-role'] !== role) {
-            return res.status(403).json({ message: "Access forbidden: you do not have the required authorization(s)." });
-            }
-        next();
-    };
-}
 
-module.exports = {verifyToken, checkRole};
+const { OAuth2Client } = require("google-auth-library");
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+app.post("/google-login", async (req, res) => {
+  const { token, admin_secret } = req.body;
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { sub, email, name } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const role = admin_secret === process.env.ADMIN_SECRET ? "admin" : "user";
+      user = new User({
+        name,
+        email,
+        password: sub, // ou password_hash si tu préfères
+        role
+      });
+      await user.save();
+    }
+
+    const jwtToken = jwt.sign(
+      { id: user._id, role: user.role, email: user.email },
+      secretKey,
+      { expiresIn: "1h" }
+    );
+
+    res.json({ token: jwtToken });
+  } catch (err) {
+    console.error("Google login failed", err);
+    res.status(401).json({ message: "Invalid Google token" });
+  }
+});
+
+module.exports = {checkAccess, checkRole, verifyToken};
 
 if (require.main === module) {
   app.listen(port, () => {

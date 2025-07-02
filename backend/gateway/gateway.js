@@ -1,16 +1,23 @@
+
+//backend/gateway/gateway.js
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+require('dotenv').config();
+
 const app = express();
+app.use(express.json());
 app.use(cors());
-const {verifyToken} = require('../auth/auth');
 
 port = 3001
+
+const {verifyToken, checkAccess} = require('../auth/auth');
 
 function forwardCredentials(req, res, next) {
     req.headers['x-user-id'] = req.user.id;
     req.headers['x-user-email'] = req.user.email;
     req.headers['x-user-role'] = req.user.role;
+    req.headers['x-secret-apikey'] = 'My-Securized-Secret:forrealthistime';
     next();
 }
 
@@ -24,7 +31,7 @@ app.use('/api/auth',
         }
     ));
 
-app.use('/api/tickets', 
+app.use('/api/tickets',
     verifyToken,
     forwardCredentials,
     createProxyMiddleware(
@@ -35,6 +42,6 @@ app.use('/api/tickets',
         }
     ));
 
-app.listen(port, () => {
-    console.log(`Gateway listening on http://localhost:${port}`);
+app.listen(3001, () => {
+    console.log(`Gateway listening on http://localhost:3001`);
 });

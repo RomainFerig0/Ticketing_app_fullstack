@@ -1,3 +1,5 @@
+//backend/models/tickets
+
 const mongoose = require('mongoose');
 
 const ticketSchema = new mongoose.Schema({
@@ -11,4 +13,4 @@ const ticketSchema = new mongoose.Schema({
     description: String
 });
 
-module.exports = ticketSchema
+module.exports = ticketSchema 
