@@ -121,7 +121,7 @@ app.get("/tickets/active", checkAccess(), checkRole("admin"), async (req, res) =
   }
 });
 
-app.get("/tickets/:motive", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets for a specific motive
+app.get("/tickets/motive/:motive", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets for a specific motive
   try {
     const tickets = await Ticket.find({motive : req.params.motive});
 
@@ -139,7 +139,7 @@ app.get("/tickets/:motive", checkAccess(), checkRole("admin"), async (req, res) 
   }
 });
 
-app.get("/tickets/:status", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets by status
+app.get("/tickets/status/:status", checkAccess(), checkRole("admin"), async (req, res) => { // Get all tickets by status
   try {
     const tickets = await Ticket.find({status : req.params.status});
 

@@ -50,7 +50,7 @@ app.post("/register", async (req, res) => { // Register/sign-in route
 
   try {
 
-    const user = new User({name : req.body.name, email : req.body.email, role : req.body.role, password_hash : req.body.password_hash})
+    const user = new User({name : req.body.name, email : req.body.email, role : req.body.role, password : req.body.password})
     await user.save();
 
     const token = jwt.sign({ id: user._id, role: user.role, email: user.email }, secretKey, {expiresIn: "1h",});
