@@ -1,6 +1,7 @@
 "use client";
-
 import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 
 const API_URL = "http://localhost:3001";
@@ -9,10 +10,28 @@ export default function AdminPage() {
   const [tickets, setTickets] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [token, setToken] = useState(null);
   const [filterType, setFilterType] = useState("active");
   const [filterValue, setFilterValue] = useState("");
   const [editingTicket, setEditingTicket] = useState(null);
   const [editedData, setEditedData] = useState({});
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("jwt");
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded.role !== "admin") {
+        router.push("/unauthorized");
+        return;
+      }
+      setToken({ token, decoded }); // <<<<< set the token here!
+      setCheckingAuth(false);
+    } catch {
+      router.push("/");
+    }
+  }, [router]);
 
   const fetchTickets = async () => {
     try {
@@ -72,21 +91,32 @@ export default function AdminPage() {
 
   const handleUpdate = async (ticketId) => {
     try {
-      await axios.patch(`${API_URL}/api/tickets/tickets/${ticketId}`, editedData, {
-        headers: getAuthHeaders(),
-      });
+      const token = localStorage.getItem("jwt");
+      const email = localStorage.getItem("email");
+      const id = localStorage.getItem("userId");
+
+      await axios.patch(`${API_URL}/api/tickets/tickets/${ticketId}`, editedData, {headers: {
+          Authorization: `Bearer ${token}`,
+          "x-user-email": email,
+          "x-user-id": id,
+        },
+      }
+      );
       setMessage("Ticket mis à jour.");
       setEditingTicket(null);
       setEditedData({});
       fetchTickets();
-    } catch {
-      setError("Erreur lors de la mise à jour.");
+    } catch(err) {
+      console.error(err);
+      setError("Erreur lors de la mise à jour");
     }
   };
 
   useEffect(() => {
     fetchTickets();
   }, [filterType, filterValue]);
+
+  if (checkingAuth) return <p>Vérification de l'authentification...</p>;
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -151,14 +181,7 @@ export default function AdminPage() {
           >
             {editingTicket === ticket._id ? (
             <>
-              <input
-                type="text"
-                placeholder="Titre"
-                value={editedData.title || ticket.title}
-                onChange={(e) =>
-                  setEditedData({ ...editedData, title: e.target.value })
-                }
-              />
+              {ticket.title}
               <select
                 value={editedData.status || ticket.status}
                 onChange={(e) =>
@@ -168,6 +191,17 @@ export default function AdminPage() {
                 <option value="open">Ouvert</option>
                 <option value="pending">En attente</option>
                 <option value="closed">Fermé</option>
+              </select>
+              <select
+                value={editedData.priority || ticket.priority}
+                onChange={(e) =>
+                  setEditedData({ ...editedData, priority: Number(e.target.value)})
+                }
+              >
+                <option value="0">Aucune</option>
+                <option value="1">Basse</option>
+                <option value="2">Moyenne</option>
+                <option value="3">Haute</option>
               </select>
               <textarea
                 rows={3}
@@ -183,21 +217,16 @@ export default function AdminPage() {
           ) : (
             <>
               <p><strong>Titre:</strong> {ticket.title}</p>
+              <p><strong>Enregistré à:</strong> {ticket.submit_time}</p>
+              <p><strong>Auteur:</strong> {ticket.email}</p>
               <p><strong>Motif:</strong> {ticket.motive}</p>
               <p><strong>Status:</strong> {ticket.status}</p>
+              <p><strong>Priorité:</strong> {ticket.priority}</p>
               <p><strong>Description:</strong> {ticket.description}</p>
               <button onClick={() => setEditingTicket(ticket._id)}>✏️ Modifier</button>
               <button onClick={() => handleDelete(ticket._id)}>❌ Supprimer</button>
             </>
           )}
-            <p><strong>Titre:</strong> {ticket.title}</p>
-            <p><strong>Motif:</strong> {ticket.motive}</p>
-            <p><strong>Status:</strong> {ticket.status}</p>
-            <p><strong>Description:</strong> {ticket.description}</p>
-            <button onClick={() => setEditingTicket(ticket._id)}>✏️ Modifier</button>
-            <button onClick={() => handleDelete(ticket._id)} style={{ marginTop: "0.5rem" }}>
-              ❌ Supprimer
-            </button>
           </div>
         ))
       )}
